@@ -61,13 +61,9 @@ public:
 
     void execute(vector<vector<int> > allMaximalClique);
     void insertClique(vector<int> maximalClique);
-    HSNode* batchUpdateTreeNode(map<HSNode*, map<int, set<int>>> treeNodeMap);
-    void resort(HSNode *updateNode,int parentHierarchical);
-    void exchange(HSNode *updateNode, HSNode *parentNode);
+    HSNode* batchUpdateTreeNode(map<HSNode*, map<int, set<int>>> treeNodeMap,set<int> newVertexSet,int newVertexNodeDegree);
     void setHierarchical(HSNode *updateNode,int hierarchical);
-    int getVertexNumber(map<HSNode*, map<int, set<int>>> treeNodeMap);
-    HSNode* splitTreeNode(HSNode* currentTreeNode, map<int, set<int>> updateVertexGroup);
-    void contractTreePath(HSNode* targetNode, HSNode* removeNode);
+    int getPotentialNum(HSNode* node, map<int, set<int>> updateNodeMap, set<int> newVertexSet, int flag=0);
     int computeMincut(int m, int n); // 在生成的树中计算任意两个点之间的最小割
     void outCutGragh(const string& filePath); // 输出任意两点间的最小割组成的矩阵
     void update(HSNode* curNode, HSNode* parentNode);
