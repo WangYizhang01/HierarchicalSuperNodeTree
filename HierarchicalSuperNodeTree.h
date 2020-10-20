@@ -13,6 +13,7 @@ using namespace std;
 
 struct HSNode{
     int degree;
+    int initDegree; // 初始极大团的大小，用于计算势
     int hierarchical;
     set<int> vertexSet;
     HSNode *parent;
@@ -68,7 +69,7 @@ public:
     void outCutGragh(const string& filePath); // 输出任意两点间的最小割组成的矩阵
     void update(HSNode* curNode, HSNode* parentNode);
 
-private:
+
     map<int, HSNode *> vertex_node_index;
     map<int, map<int,int>*> construct_graph;
     // set<HSNode *> forest_set;
