@@ -68,6 +68,7 @@ public:
     int computeMincut(int m, int n); // 在生成的树中计算任意两个点之间的最小割
     void outCutGragh(const string& filePath); // 输出任意两点间的最小割组成的矩阵
     void update(HSNode* curNode, HSNode* parentNode);
+    void connectNewVertexSet(map<int, set<int>> updateMap, HSNode* node, HSNode* newNode, set<int> newVertexSet, int newVertexNodeDegree);
 
 
     map<int, HSNode *> vertex_node_index;
