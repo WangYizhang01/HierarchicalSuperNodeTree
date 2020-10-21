@@ -1,5 +1,57 @@
 #include "HierarchicalSuperNodeTree.h"
 
+void HierarchicalSuperNodeTree::trim(string& s) {
+    if (s.empty()) {
+        return;
+    }
+    s.erase(0, s.find_first_not_of(" "));
+    s.erase(s.find_last_not_of(" ") + 1);
+}
+
+vector<string> HierarchicalSuperNodeTree::split(const string& s, const string& delim) {
+    vector<string> tokens;;
+    tokens.clear();
+    size_t lastPos = s.find_first_not_of(delim, 0);
+    size_t pos = s.find(delim, lastPos);
+    while (lastPos != string::npos) {
+        tokens.emplace_back(s.substr(lastPos, pos - lastPos));
+        lastPos = s.find_first_not_of(delim, pos);
+        pos = s.find(delim, lastPos);
+    }
+    return tokens;
+}
+
+vector<vector<int>> HierarchicalSuperNodeTree::loadData(const string& filePath) {
+    ifstream dataFile;
+    dataFile.open(filePath);
+    vector<vector<int>> allMaximalClique;
+    vector<int> maximalClique;
+
+    if (dataFile.is_open()) {
+        string line;
+        while (getline(dataFile, line)) {
+            vector<string> maximalClique_s;
+            trim(line);
+            maximalClique_s = split(line, " ");
+            maximalClique = {};
+
+            for (unsigned int i = 0; i < maximalClique_s.size(); i++) {
+                int vertex;
+                stringstream ss1;
+                ss1 << maximalClique_s[i];
+                ss1 >> vertex; //string -> int
+                maximalClique.push_back(vertex);
+            }
+            allMaximalClique.push_back(maximalClique);
+        }
+        dataFile.close();
+    }
+    else {
+        cout << "Open File Error!" << endl;
+    }
+    return allMaximalClique;
+}
+
 void HierarchicalSuperNodeTree::execute(vector<vector<int>> allMaximalClique){
     for(int num=0;num<allMaximalClique.size();num++){ // 遍历所有的极大团
         vector<int> mc = allMaximalClique[num];
@@ -94,6 +146,7 @@ void HierarchicalSuperNodeTree::insertClique(vector<int> maximalClique){
         // 公共节点在多个连通图中
         HSNode *newNode = new HSNode();
         newNode->degree = maximalClique.size() - 1;
+        newNode->initDegree = maximalClique.size();
         if(!newVertexSet.empty()){
             newNode->vertexSet = newVertexSet;
         }
@@ -116,6 +169,7 @@ void HierarchicalSuperNodeTree::insertClique(vector<int> maximalClique){
             curNode->hierarchical = newNode->hierarchical + 1;
             while (pa != NULL) {
                 HSNode* tmp = pa->parent;
+                pa->parent = curNode;
                 curNode->children.insert(make_pair(pa, pa->children[curNode])); pa->children.erase(curNode);
                 update(curNode, pa);
                 curNode = pa; pa = tmp;
@@ -464,29 +518,48 @@ HSNode* HierarchicalSuperNodeTree::batchUpdateTreeNode(map<HSNode*, map<int, set
             }
         }
 
-        // 遍历路径，将峰结点下降
-        for (map<HSNode*, int>::iterator roadit = road.begin(); roadit != road.end(); roadit++) {
-            int descendantDegree = treeNodeMap.begin()->second.begin()->first; // 峰结点需要下降的度数
+        // 输出路径road
+        cout << "road is : " << endl;
+        for (map<HSNode*, int>::iterator rit = road.begin(); rit != road.end(); rit++) {
+            cout << rit->first->degree << " ";
+        }
+        cout << endl;
 
-            HSNode* curNode = (*roadit).first;
-            if (road.find(curNode->parent) != road.end() && curNode->parent->degree < curNode->degree) {
-                if (curNode->children.size() > 0) {
-                    for (map<HSNode*, int>::iterator cit = curNode->children.begin(); cit != curNode->children.end(); cit++) {
-                        if (road.find((*cit).first) != road.end() && (*cit).first->degree < curNode->degree) {
-                            // 峰结点
-                            HSNode* newNode = new HSNode;
-                            newNode->degree = curNode->degree + descendantDegree;
-                            newNode->initDegree = curNode->initDegree;
-                            newNode->children = curNode->children;
-                            newNode->parent = curNode->parent; curNode->parent = newNode;
-                            // 更新层次信息
-                            // 注意：势的关系的继承
-                            newNode->hierarchical = curNode->hierarchical; curNode->hierarchical = newNode->hierarchical + 1;
-                            curNode->children.clear(); // 注意
-                            break;
-                        }
+        // 峰结点需要下降的度数
+        int descendantDegree = treeNodeMap.begin()->second.begin()->first;
+        // 判断是否为峰结点
+        for (map<HSNode*, int>::iterator roadit = road.begin(); roadit != road.end(); roadit++) {
+            HSNode* curNode = (*roadit).first; int count = 0;
+            if (road.find(curNode->parent) != road.end() && curNode->parent->degree > curNode->degree) {
+                count++;
+            }
+            if (curNode->children.size() > 0) {
+                for (map<HSNode*, int>::iterator cit = curNode->children.begin(); cit != curNode->children.end(); cit++) {
+                    if (road.find((*cit).first) != road.end() && (*cit).first->degree > curNode->degree) {
+                        count++;
                     }
                 }
+            }
+            // fixme
+            if (count >= 2) { //curNode为峰结点
+                HSNode* newNode = new HSNode;
+                newNode->degree = curNode->degree + descendantDegree;
+                newNode->initDegree = curNode->initDegree;
+                newNode->children = curNode->children;
+                newNode->parent = curNode->parent;
+                newNode->hierarchical = curNode->parent->hierarchical + 1;
+                curNode->parent = newNode;
+                // 更新层次信息
+                // 注意：势的关系的继承
+                // newNode->hierarchical = curNode->hierarchical; 
+                newNode->children.insert(make_pair(curNode, 0));
+                curNode->hierarchical = newNode->hierarchical + 1;
+
+                // 将curNode的子结点中parent指向newNode
+                for (map<HSNode*, int>::iterator cit = curNode->children.begin(); cit != curNode->children.end(); cit++) {
+                    (*cit).first->parent = newNode;
+                }
+                curNode->children.clear(); // 注意
             }
         }
 
@@ -699,31 +772,6 @@ void HierarchicalSuperNodeTree::printParameters(){
 int HierarchicalSuperNodeTree::computeMincut(int m, int n) {
     HSNode* Node1 = vertex_node_index[m]; HSNode* Node2 = vertex_node_index[n];
     
-    // while (Node1->hierarchical > 0 && Node2->hierarchical > 0) {
-    //     if (Node1 == Node2) {
-    //         return Node1->degree; 
-    //     }else if (Node1->hierarchical <= Node2->hierarchical) { 
-    //         if (Node2->parent->hierarchical == Node2->hierarchical-1){
-    //             Node2 = Node2->parent; 
-    //         }else{
-    //             for (map<HSNode*,int>::iterator cit = Node2->children.begin();cit != Node2->children.end();cit++){
-    //                 if ((*cit).first->hierarchical == Node2->hierarchical-1){
-    //                     Node2 = (*cit).first;
-    //                 }
-    //             }
-    //         } 
-    //     }else if (Node1->hierarchical > Node2->hierarchical) {
-    //         if (Node1->parent->hierarchical == Node1->hierarchical-1){
-    //             Node1 = Node1->parent; 
-    //         }else{
-    //             for (map<HSNode*,int>::iterator cit = Node1->children.begin();cit != Node1->children.end();cit++){
-    //                 if ((*cit).first->hierarchical == Node1->hierarchical-1){
-    //                     Node1 = (*cit).first;
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
     int minCut = min(Node1->degree, Node2->degree); 
     while (Node1->hierarchical > 0 && Node2->hierarchical > 0) {
         if (Node1 == Node2) {
@@ -754,8 +802,8 @@ void HierarchicalSuperNodeTree::outCutGragh(const string& filePath) {
     outputFile.open(filePath);
     int vertexNumber = vertex_node_index.size();
     if (outputFile.is_open()) {
-        for (int i = 0; i < vertexNumber; i++) {
-            for (int j = 0; j < vertexNumber; j++) {
+        for (int i = 1; i <= vertexNumber; i++) {
+            for (int j = 1; j <= vertexNumber; j++) {
                 if (i == j) {
                     outputFile << 0 << "    ";
                 }
@@ -773,29 +821,20 @@ void HierarchicalSuperNodeTree::outCutGragh(const string& filePath) {
 int main() {
     HierarchicalSuperNodeTree tree;
     vector<vector<int>> allMaximalClique;
-    vector<int> maximalClique1; vector<int> maximalClique2; vector<int> maximalClique3; vector<int> maximalClique4; vector<int> maximalClique5;
-    /*for (int i = 1; i < 5; i++) {
-        maximalClique1.push_back(i);
-    }
-    maximalClique2.push_back(3); maximalClique2.push_back(4); maximalClique2.push_back(5); maximalClique2.push_back(6); maximalClique3.push_back(5); maximalClique3.push_back(6); maximalClique3.push_back(7);*/
+    
+    string filePath = "C://Users//Administrator//Desktop//example//HSNT//maximalClique5.txt";
+    string outFilePath = "C://Users//Administrator//Desktop//result//HSNT//HSNT5.txt";
+    allMaximalClique = tree.loadData(filePath);
 
-    for (int i = 1; i < 7; i++) {
-        maximalClique1.push_back(i);
-    }
-    for (int i = 5; i < 10; i++) {
-        maximalClique2.push_back(i);
-    }
-    maximalClique3.push_back(3); maximalClique3.push_back(10); maximalClique3.push_back(4);
-    maximalClique4.push_back(8); maximalClique4.push_back(9); maximalClique4.push_back(11); maximalClique4.push_back(12);
-    maximalClique5.push_back(4); maximalClique5.push_back(9); maximalClique5.push_back(13);
+    //// 输出极大团
+    //for (vector<vector<int>>::iterator amcit = allMaximalClique.begin(); amcit != allMaximalClique.end(); amcit++) {
+    //    for (vector<int>::iterator mcit = amcit->begin(); mcit != amcit->end(); mcit++) {
+    //        cout << *mcit << " ";
+    //    }
+    //    cout << endl;
+    //}
 
-    allMaximalClique.push_back(maximalClique1); allMaximalClique.push_back(maximalClique2); allMaximalClique.push_back(maximalClique3); allMaximalClique.push_back(maximalClique4); allMaximalClique.push_back(maximalClique5);
     tree.execute(allMaximalClique);
-    //cout << tree.vertex_node_index[1]->children[tree.vertex_node_index[3]] << endl;
-    //cout << tree.vertex_node_index[3]->children[tree.vertex_node_index[10]] << endl;
-    //cout << tree.vertex_node_index[3]->children[tree.vertex_node_index[5]] << endl;
-    //cout << tree.vertex_node_index[5]->children[tree.vertex_node_index[7]] << endl;
-    //cout << tree.vertex_node_index[5]->children[tree.vertex_node_index[8]] << endl;
-    //cout << tree.vertex_node_index[8]->children[tree.vertex_node_index[7]] << endl;
-    //cout << tree.vertex_node_index[8]->children[tree.vertex_node_index[11]] << endl;
+    tree.outCutGragh(outFilePath);
+    cout << tree.vertex_node_index[3]->children.begin()->first->degree << endl;
 }

@@ -69,7 +69,9 @@ public:
     void outCutGragh(const string& filePath); // 输出任意两点间的最小割组成的矩阵
     void update(HSNode* curNode, HSNode* parentNode);
     void connectNewVertexSet(map<int, set<int>> updateMap, HSNode* node, HSNode* newNode, set<int> newVertexSet, int newVertexNodeDegree);
-
+    void trim(string& s); // 去除字符串首尾空格
+    vector<string> split(const string& str, const string& delim); // 分割字符串
+    vector<vector<int>> loadData(const string& filePath); // 读取极大团
 
     map<int, HSNode *> vertex_node_index;
     map<int, map<int,int>*> construct_graph;
