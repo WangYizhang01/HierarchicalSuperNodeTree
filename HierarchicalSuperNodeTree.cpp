@@ -529,37 +529,58 @@ HSNode* HierarchicalSuperNodeTree::batchUpdateTreeNode(map<HSNode*, map<int, set
         int descendantDegree = treeNodeMap.begin()->second.begin()->first;
         // 判断是否为峰结点
         for (map<HSNode*, int>::iterator roadit = road.begin(); roadit != road.end(); roadit++) {
-            HSNode* curNode = (*roadit).first; int count = 0;
+            HSNode* curNode = (*roadit).first; 
+            int count_parent = 0, count_child = 0; // 记录路径上curNode父子结点的个数
+            set<HSNode*> childrenSet; // 保存路径上curNode的子结点
+
+            // 计算路径上curNode父结点的个数
             if (road.find(curNode->parent) != road.end() && curNode->parent->degree > curNode->degree) {
-                count++;
+                count_parent++;
             }
+
+            // 计算路径上curNode子结点的个数
             if (curNode->children.size() > 0) {
                 for (map<HSNode*, int>::iterator cit = curNode->children.begin(); cit != curNode->children.end(); cit++) {
                     if (road.find((*cit).first) != road.end() && (*cit).first->degree > curNode->degree) {
-                        count++;
+                        childrenSet.insert((*cit).first);
+                        count_child++;
                     }
                 }
             }
-            // fixme
-            if (count >= 2) { //curNode为峰结点
+
+            // 更新峰结点
+            if ((count_parent + count_child) >= 2) { //curNode为峰结点
                 HSNode* newNode = new HSNode;
                 newNode->degree = curNode->degree + descendantDegree;
                 newNode->initDegree = curNode->initDegree;
-                newNode->children = curNode->children;
-                newNode->parent = curNode->parent;
-                newNode->hierarchical = curNode->parent->hierarchical + 1;
-                curNode->parent = newNode;
-                // 更新层次信息
-                // 注意：势的关系的继承
-                // newNode->hierarchical = curNode->hierarchical; 
-                newNode->children.insert(make_pair(curNode, 0));
-                curNode->hierarchical = newNode->hierarchical + 1;
+                newNode->vertexSet = {};
 
-                // 将curNode的子结点中parent指向newNode
-                for (map<HSNode*, int>::iterator cit = curNode->children.begin(); cit != curNode->children.end(); cit++) {
-                    (*cit).first->parent = newNode;
+                // 将curNode在路径上的子结点转移到newNode上（考虑了在多个结点的情况）
+                for (set<HSNode*>::iterator csit = childrenSet.begin(); csit != childrenSet.end(); csit++) {
+                    (*csit)->parent = newNode;
+                    newNode->children[*csit] = curNode->children[*csit];
+                    curNode->children.erase(*csit);
                 }
-                curNode->children.clear(); // 注意
+                // curNode的父节点在路径中
+                if (count_parent == 1) {
+                    // 更新层次信息
+                    // 注意：势的关系的继承
+                    newNode->parent = curNode->parent;
+                    newNode->hierarchical = curNode->parent->hierarchical + 1;
+                    curNode->parent->children.insert(make_pair(newNode, 0));
+                    curNode->parent->children.erase(curNode);
+                    curNode->parent = newNode;
+                    newNode->children.insert(make_pair(curNode, 0));
+                    setHierarchical(newNode, newNode->hierarchical);
+                }
+                // curNode的父节点不在路径中
+                else if (count_parent == 0) {
+                    // 更新层次信息
+                    // 注意：势的关系的继承
+                    newNode->parent = curNode; curNode->children.insert(make_pair(newNode, 0));
+                    // newNode->hierarchical = curNode->hierarchical + 1;
+                    setHierarchical(newNode, curNode->hierarchical + 1);
+                }
             }
         }
 
@@ -621,7 +642,7 @@ HSNode* HierarchicalSuperNodeTree::batchUpdateTreeNode(map<HSNode*, map<int, set
                         if (road.find(childNode) != road.end()) {
                             if (childNode->degree > endNode->degree) {
                                 flag = 1;
-                                if (newDegree > childNode->degree) { // 若新结点的度数大于endNode的父节点的度数
+                                if (newDegree > childNode->degree) { // 若新结点的度数大于endNode的子节点的度数
                                     HSNode* newEndNode = new HSNode; newEndNode->degree = newDegree; newEndNode->initDegree = endNode->initDegree;
                                     newEndNode->vertexSet = updateEndNodeMap.begin()->second;
                                     newEndNode->parent = childNode; childNode->children.insert(make_pair(newEndNode, 0));
@@ -636,7 +657,7 @@ HSNode* HierarchicalSuperNodeTree::batchUpdateTreeNode(map<HSNode*, map<int, set
                                         vertex_node_index[*nnit] = newEndNode;
                                     }
                                 }
-                                else if (newDegree <= childNode->degree) { // 若新结点的度数小于等于endNode的父节点的度数
+                                else if (newDegree <= childNode->degree) { // 若新结点的度数小于等于endNode的子节点的度数
                                     HSNode* newEndNode = new HSNode; newEndNode->degree = newDegree; newEndNode->initDegree = endNode->initDegree;
                                     newEndNode->vertexSet = updateEndNodeMap.begin()->second;
                                     newEndNode->parent = endNode; endNode->children.insert(make_pair(newEndNode, newDegree - endNode->degree)); // fixme
@@ -644,6 +665,7 @@ HSNode* HierarchicalSuperNodeTree::batchUpdateTreeNode(map<HSNode*, map<int, set
                                     childNode->parent = newEndNode; newEndNode->children.insert(make_pair(childNode, childNode->degree - newEndNode->degree)); // fixme
                                     newEndNode->hierarchical = endNode->hierarchical + 1;
                                     setHierarchical(childNode, newEndNode->hierarchical + 1);
+
                                     // 将新结点加入newUpdateNode中
                                     newUpdateNode.insert(newEndNode);
 
@@ -822,8 +844,8 @@ int main() {
     HierarchicalSuperNodeTree tree;
     vector<vector<int>> allMaximalClique;
     
-    string filePath = "C://Users//Administrator//Desktop//example//HSNT//maximalClique5.txt";
-    string outFilePath = "C://Users//Administrator//Desktop//result//HSNT//HSNT5.txt";
+    string filePath = "C://Users//Administrator//Desktop//example//HSNT//maximalClique8.txt";
+    string outFilePath = "C://Users//Administrator//Desktop//result//HSNT//HSNT8.txt";
     allMaximalClique = tree.loadData(filePath);
 
     //// 输出极大团
@@ -836,5 +858,4 @@ int main() {
 
     tree.execute(allMaximalClique);
     tree.outCutGragh(outFilePath);
-    cout << tree.vertex_node_index[3]->children.begin()->first->degree << endl;
 }
