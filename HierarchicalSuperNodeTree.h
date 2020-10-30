@@ -73,6 +73,8 @@ public:
     vector<string> split(const string& str, const string& delim); // 分割字符串
     vector<vector<int>> loadData(const string& filePath); // 读取极大团
     vector<vector<int>> splitMaximalClique(vector<int> maximalClique);
+    map<HSNode*, int> searchRoad(HSNode* node1, HSNode* node2); // 查找同一棵树上两个结点间的路径
+    void sequenceTraversal(); // 图的层序遍历
 
     map<int, HSNode*> vertex_node_index;
     map<int, map<int, int>*> construct_graph;
