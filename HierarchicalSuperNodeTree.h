@@ -61,8 +61,8 @@ public:
     };//release space
 
     void execute(vector<vector<int> > allMaximalClique);
-    void insertClique(vector<int> maximalClique);
-    HSNode* batchUpdateTreeNode(map<HSNode*, map<int, set<int>>> treeNodeMap, set<int> newVertexSet, int newVertexNodeDegree);
+    void insertClique(vector<int> maximalClique, map<int, int> increDegreeMap, set<int> newVertex, set<int> oldVertex, int flag = 0);
+    HSNode* batchUpdateTreeNode(vector<int> maximalClique, map<HSNode*, map<int, set<int>>> treeNodeMap, map<int, int> increDegreeMap, set<int> newVertexSet, int newVertexNodeDegree, set<int> oldVertexSet);
     void setHierarchical(HSNode* updateNode, int hierarchical);
     int getPotentialNum(HSNode* node, map<int, set<int>> updateNodeMap, set<int> newVertexSet, int flag = 0);
     int computeMincut(int m, int n); // 在生成的树中计算任意两个点之间的最小割
@@ -75,7 +75,9 @@ public:
     vector<vector<int>> splitMaximalClique(vector<int> maximalClique);
     map<HSNode*, int> searchRoad(HSNode* node1, HSNode* node2); // 查找同一棵树上两个结点间的路径
     void sequenceTraversal(); // 图的层序遍历
+    void updatePeakNode(map<HSNode*, int> road, int descendantDegree); // 更新峰结点
 
+private:
     map<int, HSNode*> vertex_node_index;
     map<int, map<int, int>*> construct_graph;
     // set<HSNode *> forest_set;
