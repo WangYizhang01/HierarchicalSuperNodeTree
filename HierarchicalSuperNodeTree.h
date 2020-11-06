@@ -50,6 +50,7 @@ struct HSNode {
 };
 
 
+
 class HierarchicalSuperNodeTree {
 public:
     HierarchicalSuperNodeTree() {};
