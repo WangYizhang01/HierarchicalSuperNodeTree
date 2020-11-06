@@ -517,12 +517,12 @@ HSNode* HierarchicalSuperNodeTree::batchUpdateTreeNode(vector<int> maximalClique
         map<HSNode*, map<int, set<int>>>::iterator tnmit = treeNodeMap.begin();
 
         // 峰结点需要下降的度数
-        int descendantDegree = treeNodeMap.begin()->second.begin()->first;
+        // int descendantDegree = treeNodeMap.begin()->second.begin()->first;
+        // int descendantDegree = (tnmit->second.begin()->first - newVertexSet.size()) * (tnmit->second.begin()->second.size());
+        // int descendantDegree = maximalClique.size() - 1;
+        int descendantDegree = treeNodeMap.begin()->second.begin()->first * treeNodeMap.begin()->second.begin()->second.size();
+        cout << "descendantDegree is : " << descendantDegree << endl;
 
-        // attention
-        if (descendantDegree == 0) {
-            return tnmit->first;
-        }
 
         map<HSNode*, int> road1; // 存储初始时结点间的路径
         map<HSNode*, int> road2; // 存储公共结点下降后结点间的路径
@@ -545,7 +545,8 @@ HSNode* HierarchicalSuperNodeTree::batchUpdateTreeNode(vector<int> maximalClique
 
         // 判断峰结点的度数
         // 若小于descendantDegree则需要进行重切割
-        int minDegree = 1000; HSNode* recutNode = NULL; set<HSNode*> childSet = {};
+        int minDegree1 = 1000; HSNode* recutNode1 = NULL; set<HSNode*> childSet1 = {}; 
+        int minDegree2 = 1000; HSNode* recutNode2 = NULL; set<HSNode*> childSet2 = {};
 
         for (map<HSNode*, int>::iterator roadit = road1.begin(); roadit != road1.end(); roadit++) {
             HSNode* curNode = (*roadit).first; set<HSNode*> tempChildSet = {};
@@ -565,39 +566,78 @@ HSNode* HierarchicalSuperNodeTree::batchUpdateTreeNode(vector<int> maximalClique
                 }
             }
 
-            //curNode为峰结点
+            // curNode为峰结点
             if ((count_parent + count_child) >= 2) {
-                if (curNode->degree <= minDegree) {
-                    minDegree = curNode->degree; recutNode = curNode; childSet = tempChildSet;
+                if (curNode->degree <= minDegree1) {
+                    minDegree1 = curNode->degree; recutNode1 = curNode; childSet1 = tempChildSet;
+                }
+            }
+
+            // curNode为端结点
+            if ((count_parent + count_child) == 1) {
+                if (curNode->degree <= minDegree2) {
+                    minDegree2 = curNode->degree; recutNode2 = curNode; childSet2 = tempChildSet;
                 }
             }
         }
 
+        // 判断度数最小的点是峰结点还是端结点
+        int tap = 0; // tap=0标记recutNode在中间， tap=1标记recutNode在两端
+        int minDegree = 1000; HSNode* recutNode = NULL; set<HSNode*> childSet = {};
+        if (minDegree1 <= minDegree2) {
+            minDegree = minDegree1;
+            tap = 0; recutNode = recutNode1; childSet = childSet1;
+        }
+        else {
+            minDegree = minDegree2;
+            tap = 1; recutNode = recutNode2; childSet = childSet2;
+        }
+
+        cout << endl;
+        cout << "peakNode and endNode 's littlest degree is : " << minDegree << endl;
+
         if (minDegree < descendantDegree) {
-            HSNode* n1; HSNode* n2;
-            if (childSet.size() == 1) {
-                n1 = recutNode->parent; n2 = *childSet.begin();
-            }
-            else {
-                set<HSNode*>::iterator cit = childSet.begin();
-                n1 = *cit; cit++; n2 = *cit;
-            }
+            cout << endl;
+            cout << "need to recut!" << endl;
+            cout << endl;
 
             HSNode* nullNode = new HSNode;
             nullNode->degree = recutNode->degree; nullNode->initDegree = recutNode->initDegree;
             nullNode->vertexSet = {};
 
-            // 将nullNode设置为重切割后一棵树的root
-            HSNode* childNode = *childSet.begin();
-            childNode->parent = nullNode; nullNode->children.insert(make_pair(childNode, recutNode->children[childNode]));
-            recutNode->children.erase(childNode);
-            setHierarchical(nullNode, 0);
+            if (tap == 0) { // recutNode为峰结点
+                // 将nullNode设置为重切割后一棵树的root
+                HSNode* childNode = *childSet.begin();
+                childNode->parent = nullNode; nullNode->children.insert(make_pair(childNode, recutNode->children[childNode]));
+                recutNode->children.erase(childNode);
+                setHierarchical(nullNode, 0);
+            }
+            else { // recutNode为端结点
+
+                // 端结点的父结点在路径上
+                // 将nullNode设置为重切割后一棵树的尾部
+                if (childSet.size() == 0) { 
+                    nullNode->parent = recutNode->parent; recutNode->parent->children.insert(make_pair(nullNode, recutNode->parent->children[recutNode]));
+                    nullNode->hierarchical = recutNode->hierarchical;
+                    nullNode->parent->children.erase(recutNode); recutNode->parent = NULL;
+                    setHierarchical(recutNode, 0);
+                }
+                // 端结点的子结点在路径上
+                // 将nullNode设置为重切割后一棵树的root
+                else {
+                    // 将nullNode设置为重切割后一棵树的root
+                    HSNode* childNode = *childSet.begin();
+                    childNode->parent = nullNode; nullNode->children.insert(make_pair(childNode, recutNode->children[childNode]));
+                    recutNode->children.erase(childNode);
+                    setHierarchical(nullNode, 0);
+                }
+            }
 
             // 重新加入当前极大团
             insertClique(maximalClique, increDegreeMap, newVertexSet, oldVertexSet, 1);
 
             // 将重切割时切断的边重新加上去
-            map<HSNode*, int> road = searchRoad(n1, n2);
+            map<HSNode*, int> road = searchRoad(recutNode, nullNode);
             updatePeakNode(road, minDegree);
 
             return NULL;
@@ -760,6 +800,10 @@ HSNode* HierarchicalSuperNodeTree::batchUpdateTreeNode(vector<int> maximalClique
 }
 
 void HierarchicalSuperNodeTree::updatePeakNode(map<HSNode*, int> road, int descendantDegree) {
+    if (descendantDegree == 0) {
+        return;
+    }
+
     // 判断是否为峰结点并存储在peakNodeSet中
     set<HSNode*> peakNodeSet; // 存储峰结点
 
@@ -1123,7 +1167,7 @@ void HierarchicalSuperNodeTree::sequenceTraversal() {
 
 
 int main() {
-    /*int num = 15;
+    /*int num = 14;
 
     for (int i = 0; i < num; i++) {
         stringstream ss; string i_s;
@@ -1140,7 +1184,7 @@ int main() {
         tree.outCutGragh(outFilePath);
     }*/
 
-    int num = 14;
+    int num = 4;
     stringstream ss; string i_s;
     ss << num; ss >> i_s;
 

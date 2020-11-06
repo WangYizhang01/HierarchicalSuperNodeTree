@@ -76,15 +76,12 @@ public:
     map<HSNode*, int> searchRoad(HSNode* node1, HSNode* node2); // 查找同一棵树上两个结点间的路径
     void sequenceTraversal(); // 图的层序遍历
     void updatePeakNode(map<HSNode*, int> road, int descendantDegree); // 更新峰结点
+    map<int, int> graphGrow(vector<int> maximalClique, set<int>& newVertexSet, set<int>& oldVertexSet);
+    void printParameters();
 
 private:
     map<int, HSNode*> vertex_node_index;
     map<int, map<int, int>*> construct_graph;
-    // set<HSNode *> forest_set;
-
-    map<int, int> graphGrow(vector<int> maximalClique, set<int>& newVertexSet, set<int>& oldVertexSet);
-    void printParameters();
-
 };
 
 #endif //MINCUTTREE_HIERARCHICALSUPERNODETREE_H
